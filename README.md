@@ -1,1 +1,1841 @@
-# tewapol
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบรายงานและวิเคราะห์รายได้ - นายเทวพล วงศ์สิงห์</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDF.js สำหรับอ่านไฟล์ PDF สลิปเงินเดือน -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header / Profile Banner -->
+    <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-xl py-6 px-4 md:px-8 w-full">
+        <div class="w-full flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-4">
+                <div class="bg-amber-500/20 border-2 border-amber-400 p-3 rounded-2xl text-amber-300 shadow-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-2xl font-bold tracking-wide">นายเทวพล วงศ์สิงห์</h1>
+                        <span class="bg-emerald-500/20 text-emerald-300 text-xs px-2.5 py-1 rounded-full font-medium border border-emerald-500/30">ข้าราชการ</span>
+                    </div>
+                    <p class="text-slate-300 text-sm mt-0.5">เจ้าพนักงานราชทัณฑ์ปฏิบัติงาน (เลขตำแหน่ง 1569) | ทัณฑสถานเปิดห้วยโป่ง จ.ระยอง</p>
+                </div>
+            </div>
+
+            <!-- Actions & Upload -->
+            <div class="flex flex-wrap gap-3 items-center">
+                <label class="cursor-pointer bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-4 py-2.5 rounded-xl shadow-lg transition flex items-center gap-2 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    อัปโหลดสลิป PDF / เพิ่มข้อมูล
+                    <input type="file" id="pdfUpload" accept=".pdf,.json" class="hidden" multiple onchange="handleFileUpload(event)">
+                </label>
+                <button onclick="exportJSON()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-sm transition flex items-center gap-1.5 font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    ส่งออกข้อมูล JSON
+                </button>
+                <button onclick="resetData()" class="bg-white/10 hover:bg-white/20 text-white px-3.5 py-2.5 rounded-xl text-sm transition border border-white/10">
+                    รีเซ็ตข้อมูลเริ่มต้น
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container (Full Width) -->
+    <main class="w-full flex-grow px-4 md:px-8 py-8 space-y-8">
+
+        <!-- HR & Pension Metric Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- วันเกิด & อายุ -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 relative overflow-hidden">
+                <div class="absolute right-4 top-4 text-blue-500/10 text-6xl font-black">01</div>
+                <p class="text-sm font-medium text-slate-500">วันเดือนปีเกิด & อายุ</p>
+                <h3 class="text-xl font-bold text-slate-900 mt-1">12 ก.ย. 2533</h3>
+                <p id="currentAgeText" class="text-xs text-emerald-600 font-semibold mt-2 flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> กำลังคำนวณ...
+                </p>
+            </div>
+
+            <!-- อายุราชการ (นับจาก 27 พ.ค. 2567) -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 relative overflow-hidden">
+                <div class="absolute right-4 top-4 text-indigo-500/10 text-6xl font-black">02</div>
+                <p class="text-sm font-medium text-slate-500">อายุราชการปัจจุบัน</p>
+                <h3 id="serviceTenureText" class="text-xl font-bold text-indigo-900 mt-1">-- ปี -- เดือน</h3>
+                <p class="text-xs text-slate-500 mt-2">บรรจุเมื่อ: 27 พฤษภาคม 2567</p>
+            </div>
+
+            <!-- อายุราชการคงเหลือถึงเกษียณ -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 relative overflow-hidden">
+                <div class="absolute right-4 top-4 text-amber-500/10 text-6xl font-black">03</div>
+                <p class="text-sm font-medium text-slate-500">อายุราชการคงเหลือ & เกษียณ</p>
+                <h3 id="remainingTenureText" class="text-xl font-bold text-amber-700 mt-1">-- ปี -- เดือน</h3>
+                <p id="retirementAgeText" class="text-xs text-slate-500 mt-2">เกษียณอายุ 1 ต.ค. 2593 (อายุ 60 ปี)</p>
+            </div>
+
+            <!-- ประมาณการบำนาญ/บำเหน็จ -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 relative overflow-hidden">
+                <div class="absolute right-4 top-4 text-emerald-500/10 text-6xl font-black">04</div>
+                <p class="text-sm font-medium text-slate-500">ประมาณการบำนาญรายเดือน</p>
+                <h3 id="estimatedPensionText" class="text-xl font-bold text-emerald-700 mt-1">-- บาท</h3>
+                <p class="text-xs text-slate-500 mt-2">*คำนวณจากฐานเงินเดือนปลายทาง</p>
+            </div>
+        </div>
+
+        <!-- GPV (กบข.) Summary Highlight Card -->
+        <div class="bg-gradient-to-r from-indigo-900 via-blue-900 to-slate-900 text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-4">
+                <div class="p-4 bg-white/10 rounded-2xl border border-white/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <span class="bg-amber-400/20 text-amber-300 text-xs px-2.5 py-1 rounded-full font-medium border border-amber-400/30">ข้อมูลอัปเดต กบข. ล่าสุด (พ.ย. 2569)</span>
+                    <h3 class="text-2xl font-bold mt-1">ยอดเงินสะสม กบข. รวมทั้งสิ้น <span class="text-amber-300">43,688.06</span> บาท</h3>
+                    <p class="text-slate-300 text-xs mt-1">อัตราออมเพิ่ม: <strong class="text-white">1%</strong> | แผนลงทุน: <strong class="text-white">แผนสมดุลตามอายุ (เกษียณ 60 ปี) สัดส่วนใหม่</strong> | ผลตอบแทนเฉลี่ย: <strong class="text-emerald-400">13.86% ต่อปี</strong></p>
+                </div>
+            </div>
+            <div class="flex gap-4 text-right bg-white/5 p-4 rounded-xl border border-white/10 text-sm">
+                <div>
+                    <p class="text-slate-400 text-xs">เงินสะสมของคุณ</p>
+                    <p class="font-bold text-lg text-white">19,025.81 บาท</p>
+                    <p class="text-xs text-slate-300">เงินต้น 16,410.76 | ผลประโยชน์ 2,615.05</p>
+                </div>
+                <div class="border-l border-white/20 pl-4">
+                    <p class="text-slate-400 text-xs">เงินจากภาครัฐ</p>
+                    <p class="font-bold text-lg text-white">24,646.42 บาท</p>
+                    <p class="text-xs text-slate-300">เงินต้น 21,188.10 | ผลประโยชน์...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">ยอดรวมรับ (บาท) เดือนล่าสุด</p>
+                    <h2 id="latestTotalIncome" class="text-3xl font-extrabold text-blue-600 mt-1">0.00</h2>
+                    <p id="latestMonthLabel" class="text-xs text-slate-400 mt-1">ประจำเดือนล่าสุด</p>
+                </div>
+                <div class="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">ยอดรับสุทธิรวมทั้งหมด</p>
+                    <h2 id="totalNetIncome" class="text-3xl font-extrabold text-emerald-600 mt-1">0.00</h2>
+                    <p class="text-xs text-slate-400 mt-1">จากข้อมูลสลิปเงินเดือนทั้งหมด</p>
+                </div>
+                <div class="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">ยอดหักรวมทั้งหมด</p>
+                    <h2 id="totalDeduction" class="text-3xl font-extrabold text-rose-600 mt-1">0.00</h2>
+                    <p class="text-xs text-slate-400 mt-1">กบข., สหกรณ์, รายจ่ายอื่นๆ</p>
+                </div>
+                <div class="p-4 bg-rose-50 text-rose-600 rounded-2xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+                <h3 class="text-lg font-bold text-slate-900 mb-4">แนวโน้มรายรับรวมและรับสุทธิรายเดือน</h3>
+                <div class="relative h-72">
+                    <canvas id="incomeChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+                <h3 class="text-lg font-bold text-slate-900 mb-4">สัดส่วนรายการหักหลักและเงินออม</h3>
+                <div class="relative h-72 flex justify-center">
+                    <canvas id="deductionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Breakdown Table with Edit Column -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">ประวัติรายการจ่ายเงินเดือนและเงินอื่น (แยกรายละเอียดรายรับและรายหัก)</h3>
+                    <p class="text-sm text-slate-500">แสดงแยกรายการเงินเดือน, เงินตกเบิก, พ.จ.ร., พ.ช.ค.ข., พ.ต.ร., กบข., สหกรณ์, ฌปก., สหกรณ์กระทรวง, รายจ่ายอื่นๆ พร้อมปุ่มแก้ไข</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <input type="text" id="searchInput" placeholder="ค้นหาเดือน, ปี..." onkeyup="renderTable()" class="px-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64">
+                    <button onclick="clearAllSalaryHistory()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3.5 py-2 rounded-xl text-sm transition flex items-center gap-1.5 font-medium whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        ล้างประวัติรายการ
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[1450px]">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <th class="py-4 px-3 font-semibold">ประจำเดือน</th>
+                            <th class="py-4 px-3 font-semibold text-right">เงินเดือน</th>
+                            <th class="py-4 px-3 font-semibold text-right">ตกเบิก</th>
+                            <th class="py-4 px-3 font-semibold text-right">พ.จ.ร. / พ.ต.ร. / พ.ช.ค.ข.</th>
+                            <th class="py-4 px-3 font-semibold text-right bg-blue-50/50 text-blue-700">รวมรับ</th>
+                            <th class="py-4 px-3 font-semibold text-right">กบข.สะสม/ส่วนเพิ่ม</th>
+                            <th class="py-4 px-3 font-semibold text-right">สหกรณ์กรม</th>
+                            <th class="py-4 px-3 font-semibold text-right">ฌปก.</th>
+                            <th class="py-4 px-3 font-semibold text-right">สหกรณ์กระทรวง</th>
+                            <th class="py-4 px-3 font-semibold text-right">รายจ่ายอื่นๆ</th>
+                            <th class="py-4 px-3 font-semibold text-right bg-rose-50/50 text-rose-700">รวมหัก</th>
+                            <th class="py-4 px-3 font-semibold text-right bg-emerald-50/50 text-emerald-700">รับสุทธิ</th>
+                            <th class="py-4 px-3 font-center text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden p-6 space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                <h3 class="text-lg font-bold text-slate-900" id="modalTitle">แก้ไขข้อมูลรายได้ ประจำเดือน</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form id="editForm" onsubmit="saveEditedRecord(event)" class="space-y-4">
+                <input type="hidden" id="editRecordId">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">เงินเดือน (บาท)</label>
+                        <input type="number" step="0.01" id="editSalary" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">เงินตกเบิก (บาท)</label>
+                        <input type="number" step="0.01" id="editTokberik" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">เงินอื่นๆ (พ.จ.ร./พ.ต.ร./พ.ช.ค.ข.)</label>
+                        <input type="number" step="0.01" id="editOtherInc" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">กบข. (สะสม+ส่วนเพิ่ม)</label>
+                        <input type="number" step="0.01" id="editGpv" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">สหกรณ์กรม (บาท)</label>
+                        <input type="number" step="0.01" id="editCoop" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ฌปก. (บาท)</label>
+                        <input type="number" step="0.01" id="editChpok" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">สหกรณ์กระทรวง (บาท)</label>
+                        <input type="number" step="0.01" id="editCoopMinistry" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">รายจ่ายอื่นๆ (บาท)</label>
+                        <input type="number" step="0.01" id="editOtherExpense" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-emerald-700 mb-1">รับสุทธิ (บาท)</label>
+                    <input type="number" step="0.01" id="editNet" class="w-full px-3 py-2 border border-emerald-300 bg-emerald-50 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-100 transition">ยกเลิก</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow transition">บันทึกการแก้ไข</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let salaryData = [
+    {
+        "id": 1750000000,
+        "month": "กรกฎาคม 2567",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "เงินเดือนตกเบิก",
+                "amount": 15061.94
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 680.81
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 840.96
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 840.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 20431.79
+    },
+    {
+        "id": 1750000001,
+        "month": "สิงหาคม 2567",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 3615.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 389.1
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 130.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 8675.9
+    },
+    {
+        "id": 1750000002,
+        "month": "กันยายน 2567",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 3615.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 389.1
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 140.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 8665.9
+    },
+    {
+        "id": 1750000003,
+        "month": "ตุลาคม 2567",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8772.1
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 518.8
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 80.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 13753.3
+    },
+    {
+        "id": 1750000004,
+        "month": "พฤศจิกายน 2567",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 3300.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 518.8
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 130.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 8231.2
+    },
+    {
+        "id": 1750000005,
+        "month": "ธันวาคม 2567",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 3300.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 518.8
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 245.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 8116.2
+    },
+    {
+        "id": 1750000006,
+        "month": "มกราคม 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 3300.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 518.8
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 778.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 120.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 8253.2
+    },
+    {
+        "id": 1750000007,
+        "month": "กุมภาพันธ์ 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 3300.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 518.8
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 105.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 8256.2
+    },
+    {
+        "id": 1750000008,
+        "month": "มีนาคม 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 3300.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 518.8
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 135.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 8226.2
+    },
+    {
+        "id": 1750000009,
+        "month": "เมษายน 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 12970.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 7483.87
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 518.8
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 135.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 12410.07
+    },
+    {
+        "id": 1750000010,
+        "month": "พฤษภาคม 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "เงินเดือนตกเบิก",
+                "amount": 2520.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 15620.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 634.0
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 105.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 23341.0
+    },
+    {
+        "id": 1750000011,
+        "month": "มิถุนายน 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 533.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 90.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 13316.8
+    },
+    {
+        "id": 1750000012,
+        "month": "กรกฎาคม 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 533.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 790.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 165.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 13241.8
+    },
+    {
+        "id": 1750000013,
+        "month": "สิงหาคม 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 533.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 810.0
+            },
+            {
+                "name": "ฌปก.",
+                "amount": 225.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 13161.8
+    },
+    {
+        "id": 1750000014,
+        "month": "กันยายน 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 533.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 810.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 13386.8
+    },
+    {
+        "id": 1750000015,
+        "month": "ตุลาคม 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 533.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 6600.0
+            }
+        ],
+        "net": 13196.8
+    },
+    {
+        "id": 1750000016,
+        "month": "พฤศจิกายน 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 533.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 19196.8
+    },
+    {
+        "id": 1750000017,
+        "month": "ธันวาคม 2568",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13330.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 533.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 19196.8
+    },
+    {
+        "id": 1750000018,
+        "month": "มกราคม 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13730.0
+            },
+            {
+                "name": "เงินเดือนตกเบิก",
+                "amount": 3600.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 13220.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 693.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 28256.8
+    },
+    {
+        "id": 1750000019,
+        "month": "กุมภาพันธ์ 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13730.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 549.2
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 19580.8
+    },
+    {
+        "id": 1750000020,
+        "month": "มีนาคม 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13790.0
+            },
+            {
+                "name": "เงินเดือนตกเบิก",
+                "amount": 660.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 578.0
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            },
+            {
+                "name": "รายจ่ายอื่นๆ",
+                "amount": 360.0
+            }
+        ],
+        "net": 19912.0
+    },
+    {
+        "id": 1750000021,
+        "month": "เมษายน 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 13790.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 551.6
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 19638.4
+    },
+    {
+        "id": 1750000022,
+        "month": "พฤษภาคม 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 15060.0
+            },
+            {
+                "name": "เงินเดือนตกเบิก",
+                "amount": 15240.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 12050.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 1212.0
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            },
+            {
+                "name": "รายจ่ายอื่นๆ",
+                "amount": 4050.0
+            }
+        ],
+        "net": 31438.0
+    },
+    {
+        "id": 1750000023,
+        "month": "มิถุนายน 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 15060.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 602.4
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 20857.6
+    },
+    {
+        "id": 1750000024,
+        "month": "กรกฎาคม 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 15440.0
+            },
+            {
+                "name": "เงินเดือนตกเบิก",
+                "amount": 3420.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 754.4
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 24505.6
+    },
+    {
+        "id": 1750000025,
+        "month": "สิงหาคม 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 15440.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 617.6
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 21222.4
+    },
+    {
+        "id": 1750000026,
+        "month": "กันยายน 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 15440.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 617.6
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 21222.4
+    },
+    {
+        "id": 1750000027,
+        "month": "ตุลาคม 2569",
+        "unit": "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+        "account": "2180486928",
+        "positionNo": "0001569",
+        "income": [
+            {
+                "name": "เงินเดือน",
+                "amount": 15440.0
+            },
+            {
+                "name": "พ.จ.ร. / พ.ต.ร.",
+                "amount": 8000.0
+            }
+        ],
+        "deduction": [
+            {
+                "name": "กบข. สะสมส่วนเพิ่ม",
+                "amount": 617.6
+            },
+            {
+                "name": "สหกรณ์กรม",
+                "amount": 1000.0
+            },
+            {
+                "name": "สหกรณ์กระทรวง",
+                "amount": 600.0
+            }
+        ],
+        "net": 21222.4
+    }
+];
+
+        let incomeChartInstance = null;
+        let deductionChartInstance = null;
+
+        function sortSalaryData() {
+            const monthOrder = {
+                "มกราคม": 1, "กุมภาพันธ์": 2, "มีนาคม": 3, "เมษายน": 4, 
+                "พฤษภาคม": 5, "มิถุนายน": 6, "กรกฎาคม": 7, "สิงหาคม": 8, 
+                "กันยายน": 9, "ตุลาคม": 10, "พฤศจิกายน": 11, "ธันวาคม": 12
+            };
+            salaryData.sort((a, b) => {
+                let partsA = a.month.split(' ');
+                let partsB = b.month.split(' ');
+                let mNameA = partsA[0];
+                let yStrA = partsA[1] || "2568";
+                let mNameB = partsB[0];
+                let yStrB = partsB[1] || "2568";
+                
+                let yearA = parseInt(yStrA) || 2568;
+                let yearB = parseInt(yStrB) || 2568;
+                if (yearA !== yearB) return yearA - yearB;
+                return (monthOrder[mNameA] || 0) - (monthOrder[mNameB] || 0);
+            });
+        }
+
+        function calculateHRMetrics() {
+            const birthDate = new Date(1990, 8, 12); // 12 ก.ย. 2533 (Month 8 = Sep)
+            const currentDate = new Date(2026, 10, 16); // 16 พ.ย. 2569
+            
+            let ageYears = currentDate.getFullYear() - birthDate.getFullYear();
+            let ageMonths = currentDate.getMonth() - birthDate.getMonth();
+            let ageDays = currentDate.getDate() - birthDate.getDate();
+            if (ageDays < 0) { ageMonths--; ageDays += 30; }
+            if (ageMonths < 0) { ageYears--; ageMonths += 12; }
+            
+            document.getElementById('currentAgeText').innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${ageYears} ปี ${ageMonths} เดือน ${ageDays} วัน`;
+
+            const hireDate = new Date(2024, 4, 27); // 27 พ.ค. 2567
+            let serviceYears = currentDate.getFullYear() - hireDate.getFullYear();
+            let serviceMonths = currentDate.getMonth() - hireDate.getMonth();
+            let serviceDays = currentDate.getDate() - hireDate.getDate();
+            if (serviceDays < 0) { serviceMonths--; serviceDays += 30; }
+            if (serviceMonths < 0) { serviceYears--; serviceMonths += 12; }
+
+            document.getElementById('serviceTenureText').innerText = `${serviceYears} ปี ${serviceMonths} เดือน`;
+
+            const retireDate = new Date(2050, 9, 1); // 1 ต.ค. 2593 (อายุ 60 ปี เกิด ก.ย. 2533 เกษียณ 1 ต.ค. 2593)
+            let remYears = retireDate.getFullYear() - currentDate.getFullYear();
+            let remMonths = retireDate.getMonth() - currentDate.getMonth();
+            if (remMonths < 0) { remYears--; remMonths += 12; }
+
+            document.getElementById('remainingTenureText').innerText = `${remYears} ปี ${remMonths} เดือน`;
+
+            const estimatedLastSalary = 38500;
+            const totalServiceYearsAtRetire = 26.35;
+            const estimatedPension = (estimatedLastSalary * totalServiceYearsAtRetire) / 50;
+            document.getElementById('estimatedPensionText').innerText = estimatedPension.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " บาท";
+        }
+
+        function updateDashboard() {
+            sortSalaryData();
+            let totalNet = 0;
+            let totalDed = 0;
+
+            if (salaryData.length === 0) {
+                document.getElementById('latestTotalIncome').innerText = "0.00";
+                document.getElementById('latestMonthLabel').innerText = "ยังไม่มีข้อมูล (กรุณาอัปโหลดสลิป PDF)";
+                document.getElementById('totalNetIncome').innerText = "0.00";
+                document.getElementById('totalDeduction').innerText = "0.00";
+                renderTable();
+                renderCharts();
+                return;
+            }
+
+            salaryData.forEach(item => {
+                const sumDed = item.deduction.reduce((acc, cur) => acc + cur.amount, 0);
+                totalNet += item.net;
+                totalDed += sumDed;
+            });
+
+            const latestItem = salaryData[salaryData.length - 1];
+            const latestTotalInc = latestItem.income.reduce((acc, cur) => acc + cur.amount, 0);
+
+            document.getElementById('latestTotalIncome').innerText = latestTotalInc.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('latestMonthLabel').innerText = `ประจำเดือนล่าสุด (${latestItem.month})`;
+
+            document.getElementById('totalNetIncome').innerText = totalNet.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('totalDeduction').innerText = totalDed.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            renderTable();
+            renderCharts();
+        }
+
+        function renderTable() {
+            const keyword = document.getElementById('searchInput').value.toLowerCase();
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const filtered = salaryData.filter(item => 
+                item.month.toLowerCase().includes(keyword) || 
+                item.unit.toLowerCase().includes(keyword)
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="13" class="py-6 text-center text-slate-400">ยังไม่มีข้อมูลในระบบ (กรุณากดปุ่ม "อัปโหลดสลิป PDF" ด้านบนเพื่อเพิ่มข้อมูลตามจริง)</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((item) => {
+                let salaryAmt = 0;
+                let tokberikAmt = 0;
+                let otherIncAmt = 0;
+
+                item.income.forEach(i => {
+                    if (i.name.includes("เงินเดือน") && !i.name.includes("ตกเบิก")) {
+                        salaryAmt += i.amount;
+                    } else if (i.name.includes("ตกเบิก")) {
+                        tokberikAmt += i.amount;
+                    } else {
+                        otherIncAmt += i.amount;
+                    }
+                });
+                const sumInc = item.income.reduce((a, b) => a + b.amount, 0);
+
+                let gpvAmt = 0;
+                let coopAmt = 0;
+                let chpokAmt = 0;
+                let coopMinistryAmt = 0;
+                let otherExpenseAmt = 0;
+
+                item.deduction.forEach(d => {
+                    if (d.name.includes("กบข.")) {
+                        gpvAmt += d.amount;
+                    } else if (d.name.includes("สหกรณ์") && (d.name.includes("กระทรวง") || d.name.includes("ปลัด"))) {
+                        coopMinistryAmt += d.amount;
+                    } else if (d.name.includes("สหกรณ์") || d.name.includes("ออมทรัพย์")) {
+                        coopAmt += d.amount;
+                    } else if (d.name.includes("ฌปก.")) {
+                        chpokAmt += d.amount;
+                    } else {
+                        otherExpenseAmt += d.amount;
+                    }
+                });
+                const sumDed = item.deduction.reduce((a, b) => a + b.amount, 0);
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/80 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="py-4 px-3 font-medium text-slate-900 whitespace-nowrap">${item.month}</td>
+                    <td class="py-4 px-3 text-right text-slate-700">${salaryAmt > 0 ? salaryAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right text-amber-700">${tokberikAmt > 0 ? tokberikAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right text-slate-700">${otherIncAmt > 0 ? otherIncAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right font-semibold text-blue-600 bg-blue-50/20">${sumInc.toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
+                    <td class="py-4 px-3 text-right text-rose-700">${gpvAmt > 0 ? gpvAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right text-rose-700">${coopAmt > 0 ? coopAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right text-rose-700">${chpokAmt > 0 ? chpokAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right text-rose-700">${coopMinistryAmt > 0 ? coopMinistryAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right text-rose-700">${otherExpenseAmt > 0 ? otherExpenseAmt.toLocaleString('th-TH', {minimumFractionDigits: 2}) : '-'}</td>
+                    <td class="py-4 px-3 text-right font-semibold text-rose-600 bg-rose-50/20">${sumDed.toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
+                    <td class="py-4 px-3 text-right font-bold text-slate-900 bg-emerald-50/20">${item.net.toLocaleString('th-TH', {minimumFractionDigits: 2})}</td>
+                    <td class="py-4 px-3 text-center">
+                        <button onclick="openEditModal(${item.id})" class="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition" title="แก้ไขรายการ">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openEditModal(id) {
+            const record = salaryData.find(d => d.id === id);
+            if (!record) return;
+
+            document.getElementById('editRecordId').value = record.id;
+            document.getElementById('modalTitle').innerText = `แก้ไขข้อมูล ประจำเดือน ${record.month}`;
+
+            let sal = 0, tok = 0, oth = 0;
+            record.income.forEach(i => {
+                if (i.name.includes("เงินเดือน") && !i.name.includes("ตกเบิก")) sal += i.amount;
+                else if (i.name.includes("ตกเบิก")) tok += i.amount;
+                else oth += i.amount;
+            });
+
+            let gpv = 0, coop = 0, chpok = 0, coopMinistry = 0, otherExpense = 0;
+            record.deduction.forEach(d => {
+                if (d.name.includes("กบข.")) gpv += d.amount;
+                else if (d.name.includes("สหกรณ์") && (d.name.includes("กระทรวง") || d.name.includes("ปลัด"))) coopMinistry += d.amount;
+                else if (d.name.includes("สหกรณ์") || d.name.includes("ออมทรัพย์")) coop += d.amount;
+                else if (d.name.includes("ฌปก.")) chpok += d.amount;
+                else otherExpense += d.amount;
+            });
+
+            document.getElementById('editSalary').value = sal;
+            document.getElementById('editTokberik').value = tok;
+            document.getElementById('editOtherInc').value = oth;
+            document.getElementById('editGpv').value = gpv;
+            document.getElementById('editCoop').value = coop;
+            document.getElementById('editChpok').value = chpok;
+            document.getElementById('editCoopMinistry').value = coopMinistry;
+            document.getElementById('editOtherExpense').value = otherExpense;
+            document.getElementById('editNet').value = record.net;
+
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        function saveEditedRecord(event) {
+            event.preventDefault();
+            const id = parseInt(document.getElementById('editRecordId').value);
+            const record = salaryData.find(d => d.id === id);
+            if (!record) return;
+
+            const sal = parseFloat(document.getElementById('editSalary').value) || 0;
+            const tok = parseFloat(document.getElementById('editTokberik').value) || 0;
+            const oth = parseFloat(document.getElementById('editOtherInc').value) || 0;
+            const gpv = parseFloat(document.getElementById('editGpv').value) || 0;
+            const coop = parseFloat(document.getElementById('editCoop').value) || 0;
+            const chpok = parseFloat(document.getElementById('editChpok').value) || 0;
+            const coopMinistry = parseFloat(document.getElementById('editCoopMinistry').value) || 0;
+            const otherExpense = parseFloat(document.getElementById('editOtherExpense').value) || 0;
+            const net = parseFloat(document.getElementById('editNet').value) || 0;
+
+            let newIncome = [];
+            if (sal > 0) newIncome.push({ name: "เงินเดือน", amount: sal });
+            if (tok > 0) newIncome.push({ name: "เงินเดือนตกเบิก", amount: tok });
+            if (oth > 0) newIncome.push({ name: "พ.จ.ร. / พ.ต.ร.", amount: oth });
+
+            let newDeduction = [];
+            if (gpv > 0) newDeduction.push({ name: "กบข. สะสม", amount: gpv });
+            if (coop > 0) newDeduction.push({ name: "สหกรณ์/ออมทรัพย์", amount: coop });
+            if (chpok > 0) newDeduction.push({ name: "ฌปก.", amount: chpok });
+            if (coopMinistry > 0) newDeduction.push({ name: "สหกรณ์กระทรวง", amount: coopMinistry });
+            if (otherExpense > 0) newDeduction.push({ name: "รายจ่ายอื่นๆ", amount: otherExpense });
+
+            record.income = newIncome;
+            record.deduction = newDeduction;
+            record.net = net;
+
+            closeEditModal();
+            updateDashboard();
+            alert("บันทึกการแก้ไขรายการเรียบร้อยแล้วครับ");
+        }
+
+        function renderCharts() {
+            const labels = salaryData.map(i => i.month);
+            const netIncomes = salaryData.map(i => i.net);
+            const totalIncomes = salaryData.map(i => i.income.reduce((a, b) => a + b.amount, 0));
+
+            const incomeCanvas = document.getElementById('incomeChart');
+            if (incomeCanvas) {
+                const ctxIncome = incomeCanvas.getContext('2d');
+                if (incomeChartInstance) incomeChartInstance.destroy();
+                incomeChartInstance = new Chart(ctxIncome, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'รวมรายรับ',
+                                data: totalIncomes,
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'รับสุทธิ',
+                                data: netIncomes,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+
+            let deductionMap = {};
+            salaryData.forEach(item => {
+                item.deduction.forEach(d => {
+                    deductionMap[d.name] = (deductionMap[d.name] || 0) + d.amount;
+                });
+            });
+
+            const dedLabels = Object.keys(deductionMap);
+            const dedValues = Object.values(deductionMap);
+
+            const deductionCanvas = document.getElementById('deductionChart');
+            if (deductionCanvas) {
+                const ctxDed = deductionCanvas.getContext('2d');
+                if (deductionChartInstance) deductionChartInstance.destroy();
+                deductionChartInstance = new Chart(ctxDed, {
+                    type: 'doughnut',
+                    data: {
+                        labels: dedLabels,
+                        datasets: [{
+                            data: dedValues,
+                            backgroundColor: ['#f43f5e', '#fb923c', '#818cf8', '#38bdf8', '#c084fc', '#34d399', '#facc15']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+        }
+
+        function clearAllSalaryHistory() {
+            if (confirm("คุณต้องการล้างประวัติรายการจ่ายเงินเดือนและเงินอื่นทั้งหมดใช่หรือไม่?")) {
+                salaryData = [];
+                updateDashboard();
+                alert("ล้างประวัติรายการทั้งหมดเรียบร้อยแล้วครับ");
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            let addedCount = 0;
+            let updatedCount = 0;
+            let duplicateMonths = [];
+
+            for (let file of files) {
+                if (file.type === "application/json" || file.name.endsWith('.json')) {
+                    try {
+                        const text = await file.text();
+                        const imported = JSON.parse(text);
+                        if (Array.isArray(imported)) {
+                            imported.forEach(imp => {
+                                const existIdx = salaryData.findIndex(d => d.month === imp.month);
+                                if (existIdx >= 0) {
+                                    duplicateMonths.push(imp.month);
+                                    salaryData[existIdx] = imp;
+                                    updatedCount++;
+                                } else {
+                                    salaryData.push(imp);
+                                    addedCount++;
+                                }
+                            });
+                        } else if (typeof imported === 'object' && imported !== null) {
+                            const existIdx = salaryData.findIndex(d => d.month === imported.month);
+                            if (existIdx >= 0) {
+                                duplicateMonths.push(imported.month);
+                                salaryData[existIdx] = imported;
+                                updatedCount++;
+                            } else {
+                                salaryData.push(imported);
+                                addedCount++;
+                            }
+                        }
+                    } catch(err) {
+                        alert("ไฟล์ JSON ไม่ถูกต้อง: " + err.message);
+                    }
+                } else if (file.type === "application/pdf" || file.name.endsWith('.pdf')) {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                        
+                        let textItems = [];
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            textContent.items.forEach(item => {
+                                textItems.push({
+                                    str: item.str,
+                                    x: item.transform[4],
+                                    y: item.transform[5]
+                                });
+                            });
+                        }
+                        
+                        const parsedRecord = parseSlipByCoordinates(textItems, file.name);
+                        if (parsedRecord) {
+                            const existingIndex = salaryData.findIndex(d => d.month === parsedRecord.month);
+                            if (existingIndex >= 0) {
+                                duplicateMonths.push(parsedRecord.month);
+                                salaryData[existingIndex] = parsedRecord;
+                                updatedCount++;
+                            } else {
+                                salaryData.push(parsedRecord);
+                                addedCount++;
+                            }
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert("เกิดข้อผิดพลาดในการอ่านไฟล์ PDF: " + err.message);
+                    }
+                }
+            }
+
+            if (addedCount > 0 || updatedCount > 0) {
+                updateDashboard();
+                let msg = `อัปโหลดสำเร็จ!
+- เพิ่มใหม่: ${addedCount} เดือน
+- อัปเดตทับเดือนเดิม: ${updatedCount} เดือน`;
+                if (duplicateMonths.length > 0) {
+                    msg += `
+
+⚠️ พบข้อมูลเดือนซ้ำที่ถูกแทนที่:
+- ${Array.from(new Set(duplicateMonths)).join(", ")}`;
+                }
+                alert(msg);
+            }
+        }
+
+        function parseSlipByCoordinates(textItems, fileName) {
+            let linesMap = {};
+            textItems.forEach(item => {
+                let yKey = Math.round(item.y / 5) * 5;
+                if (!linesMap[yKey]) linesMap[yKey] = [];
+                linesMap[yKey].push(item);
+            });
+
+            let sortedKeys = Object.keys(linesMap).sort((a, b) => Number(b) - Number(a));
+            let structuredLines = [];
+            sortedKeys.forEach(y => {
+                let lineItems = linesMap[y].sort((a, b) => a.x - b.x);
+                let lineText = lineItems.map(i => i.str).join(" ");
+                structuredLines.push(lineText);
+            });
+
+            let fullText = structuredLines.join(" ");
+
+            const monthsThai = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+            let foundMonthName = "กุมภาพันธ์";
+            let foundYear = "2568";
+            
+            for (let m of monthsThai) {
+                if (fullText.includes(m)) {
+                    foundMonthName = m;
+                    break;
+                }
+            }
+
+            const yearMatch = fullText.match(/25\d{2}/);
+            if (yearMatch) {
+                foundYear = yearMatch[0];
+            } else {
+                const fileYearMatch = fileName.match(/25\d{2}/);
+                if (fileYearMatch) {
+                    foundYear = fileYearMatch[0];
+                }
+            }
+
+            let foundMonth = `${foundMonthName} ${foundYear}`;
+
+            let incomeItems = [];
+            let deductionItems = [];
+            let netVal = 0;
+
+            structuredLines.forEach(line => {
+                if (line.includes("เงินเดือน") && !line.includes("ตกเบิก")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) incomeItems.push({ name: "เงินเดือน", amount: parseFloat(m[1].replace(/,/g, '')) });
+                } else if (line.includes("เงินเดือนตกเบิก")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) incomeItems.push({ name: "เงินเดือนตกเบิก", amount: parseFloat(m[1].replace(/,/g, '')) });
+                } else if (line.includes("พ.จ.ร.")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) incomeItems.push({ name: "พ.จ.ร.", amount: parseFloat(m[1].replace(/,/g, '')) });
+                } else if (line.includes("พ.ช.ค.ข.")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) incomeItems.push({ name: "พ.ช.ค.ข.", amount: parseFloat(m[1].replace(/,/g, '')) });
+                } else if (line.includes("พ.ต.ร.")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) incomeItems.push({ name: "พ.ต.ร.", amount: parseFloat(m[1].replace(/,/g, '')) });
+                }
+            });
+
+            if (incomeItems.length === 0) {
+                const salMatch = fullText.match(/เงินเดือน\s*([\d,]+\.?\d*)/);
+                if (salMatch) incomeItems.push({ name: "เงินเดือน", amount: parseFloat(salMatch[1].replace(/,/g, '')) });
+                const ptrMatch = fullText.match(/พ\.ต\.ร\.\s*([\d,]+\.?\d*)/);
+                if (ptrMatch) incomeItems.push({ name: "พ.ต.ร.", amount: parseFloat(ptrMatch[1].replace(/,/g, '')) });
+            }
+
+            structuredLines.forEach(line => {
+                if (line.includes("กบข.") && line.includes("สะสมส่วนเพิ่ม")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) deductionItems.push({ name: "กบข. สะสมส่วนเพิ่ม", amount: parseFloat(m[1].replace(/,/g, '')) });
+                } else if (line.includes("กบข.") && line.includes("สะสม")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) deductionItems.push({ name: "กบข. สะสม", amount: parseFloat(m[1].replace(/,/g, '')) });
+                } else if (line.includes("สหกรณ์") && (line.includes("กระทรวง") || line.includes("ปลัด"))) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) deductionItems.push({ name: "สหกรณ์กระทรวง", amount: parseFloat(m[1].replace(/,/g, '')) });
+                } else if (line.includes("สหกรณ์") || line.includes("ออมทรัพย์")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) {
+                        let amt = parseFloat(m[1].replace(/,/g, ''));
+                        if (amt > 0 && !deductionItems.some(d => d.name === "สหกรณ์/ออมทรัพย์")) {
+                            deductionItems.push({ name: "สหกรณ์/ออมทรัพย์", amount: amt });
+                        }
+                    }
+                } else if (line.includes("ฌปก.")) {
+                    const m = line.match(/([\d,]+\.\d{2})/);
+                    if (m) deductionItems.push({ name: "ฌปก.", amount: parseFloat(m[1].replace(/,/g, '')) });
+                }
+            });
+
+            const netMatch = fullText.match(/รับสุทธิ\s*([\d,]+\.?\d*)/);
+            if (netMatch) {
+                netVal = parseFloat(netMatch[1].replace(/,/g, ''));
+            } else {
+                const totalInc = incomeItems.reduce((acc, cur) => acc + cur.amount, 0);
+                const totalDed = deductionItems.reduce((acc, cur) => acc + cur.amount, 0);
+                netVal = totalInc - totalDed;
+            }
+
+            return {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                month: foundMonth,
+                unit: "ทัณฑสถานเปิดห้วยโป่ง (จ.ระยอง)",
+                account: "2180486928",
+                positionNo: "0001569",
+                income: incomeItems,
+                deduction: deductionItems,
+                net: netVal
+            };
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(salaryData, null, 4));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "salary_data_tewapol.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function resetData() {
+            if (confirm("ต้องการรีเซ็ตข้อมูลกลับเป็นค่าเริ่มต้นหรือไม่?")) {
+                location.reload();
+            }
+        }
+
+        window.onload = function() {
+            calculateHRMetrics();
+            updateDashboard();
+        };
+    </script>
+</body>
+</html>
